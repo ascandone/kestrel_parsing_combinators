@@ -130,3 +130,22 @@ pub let string = fn expected_str {
   |> String.to_list()
   |> helper()
 }
+
+/// Runs the given parser _zero_ or more times, and return the list of parsed values
+pub let many = fn parser {
+  one_of([
+    {
+      let#and_then x = parser;
+      let#and_then xs = many(parser);
+      Parser.of(x :: xs)
+    },
+    Parser.of([]),
+  ])
+}
+
+/// Runs the given parser _one_ or more times
+pub let many1 = fn parser {
+  let#and_then x = parser;
+  let#and_then xs = many(parser);
+  Parser.of((x, xs))
+}

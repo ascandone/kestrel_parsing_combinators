@@ -192,6 +192,43 @@ let utilities = Test.concat([
       |> Expect.equal(Ok(Unit))
     }),
   ]),
+  Test.describe("many", [
+    Test.test("is able to parse the data once", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.many()
+      };
+      Parser.run(parser, "abc")
+      |> Expect.equal(Ok([Unit]))
+    }),
+    Test.test("returns the empty list when it cannot parse", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.many()
+      };
+      Parser.run(parser, "xx")
+      |> Expect.equal(Ok([]))
+    }),
+    Test.test("is able to parse multiple values", fn {
+      let parser = {
+        Parser.any
+        |> Parser.many()
+      };
+      Parser.run(parser, "abc")
+      |> Expect.equal(Ok(['a', 'b', 'c']))
+    }),
+    Test.test("consumes the input", fn {
+      let parser = {
+        let#Parser.and_then _ = {
+          Parser.char('a')
+          |> Parser.many()
+        };
+        Parser.char('b')
+      };
+      Parser.run(parser, "ab")
+      |> Expect.equal(Ok(Unit))
+    }),
+  ]),
 ])
 
 pub let main = {
