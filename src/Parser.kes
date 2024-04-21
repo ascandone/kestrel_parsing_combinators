@@ -32,6 +32,17 @@ pub let fail = fn reason {
   })
 }
 
+/// Avoid consuming the input if the parser fails. This is useful in combination with [`one_of`](#one_of)
+pub let try = fn Parser(run_parser) {
+  Parser(fn state {
+    let (new_state, result) = run_parser(state);
+    match result {
+      Ok(_) => (new_state, result),
+      Err(_) => (state, result),
+    }
+  })
+}
+
 /// A parser that consumes any char
 pub let any = Parser(fn state {
   let State(index, str) = state;
@@ -75,12 +86,17 @@ pub let map = fn p, f {
   of(f(x))
 }
 
+let get_index = fn State(index, _) {
+  index
+}
+
 let one_of_binary = fn Parser(run_p1), Parser(run_p2) {
   Parser(fn state {
-    let (new_state, result) = run_p1(state);
-    match result {
-      Err(_) => run_p2(state),
-      Ok(value) => (new_state, Ok(value)),
+    let parser_result = run_p1(state);
+    let (new_state, result) = parser_result;
+    match (result, get_index(state) == get_index(new_state)) {
+      (Err(_), True) => run_p2(state),
+      _ => parser_result,
     }
   })
 }

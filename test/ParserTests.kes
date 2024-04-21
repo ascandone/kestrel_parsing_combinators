@@ -83,24 +83,27 @@ let primitives = Test.concat([
       Parser.run(parser, "any str")
       |> Expect.equal(Ok(42))
     }),
-    Test.test("the second parser can recover the error", fn {
-      let parser = Parser.one_of([Parser.fail("fail"), Parser.of(42)]);
-      Parser.run(parser, "any str")
-      |> Expect.equal(Ok(42))
-    }),
+    Test.test(
+      "the second parser can recover the error when it does not consume input",
+      fn {
+        let parser = Parser.one_of([Parser.fail("fail"), Parser.of(42)]);
+        Parser.run(parser, "any str")
+        |> Expect.equal(Ok(42))
+      },
+    ),
     Test.test("takes the first valid parser", fn {
       let parser = Parser.one_of([Parser.of(0), Parser.of(1)]);
       Parser.run(parser, "any str")
       |> Expect.equal(Ok(0))
     }),
-    Test.test("does not consume the input on failure", fn {
+    Test.test("cannot recover the error when input was consumed", fn {
       let consume_and_fail = {
         let#Parser.and_then _ = Parser.any;
         Parser.fail("fail")
       };
       let parser = Parser.one_of([consume_and_fail, Parser.char('a')]);
       Parser.run(parser, "aX")
-      |> Expect.equal(Ok(Unit))
+      |> Expect.err()
     }),
     Test.test("consumes the state on success", fn {
       let parser = {
@@ -113,6 +116,28 @@ let primitives = Test.concat([
       };
       Parser.run(parser, "ab")
       |> Expect.equal(Ok(Unit))
+    }),
+  ]),
+  Test.describe("try", [
+    Test.test("prevents a failing combinator to consume input", fn {
+      let failing_parser = Parser.try({
+        let#Parser.and_then _ = Parser.char('a');
+        let#Parser.and_then _ = Parser.char('b');
+        let#Parser.and_then _ = Parser.char('z');
+        Parser.of(Unit)
+      });
+      let parser = Parser.one_of([failing_parser, Parser.char('a')]);
+      Parser.run(parser, "abcd")
+      |> Expect.equal(Ok(Unit))
+    }),
+    Test.test("consume state when parser succeeds", fn {
+      let parser = {
+        let#Parser.and_then ch = Parser.try(Parser.any);
+        let#Parser.and_then Unit = Parser.char('b');
+        Parser.of(ch)
+      };
+      Parser.run(parser, "abcd")
+      |> Expect.equal(Ok('a'))
     }),
   ]),
 ])
