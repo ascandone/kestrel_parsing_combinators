@@ -1,0 +1,175 @@
+import Expect
+import Parser
+import Test
+
+let primitives = Test.concat([
+  Test.describe("of", [
+    Test.test("always succeeds with the given value", fn {
+      Parser.run(Parser.of(42), "any string")
+      |> Expect.equal(Ok(42))
+    }),
+  ]),
+  Test.describe("fail", [
+    Test.test("always fails with the given reason", fn {
+      Parser.run(Parser.fail("something"), "any string")
+      |> Expect.err()
+    }),
+  ]),
+  Test.describe("any", [
+    Test.test("succeeds on a singleton", fn {
+      Parser.run(Parser.any, "x")
+      |> Expect.equal(Ok('x'))
+    }),
+    Test.test("succeeds even when there are remaining chars", fn {
+      Parser.run(Parser.any, "abc")
+      |> Expect.equal(Ok('a'))
+    }),
+    Test.test("fails on an empty string", fn {
+      Parser.run(Parser.any, "")
+      |> Expect.err()
+    }),
+  ]),
+  Test.describe("end", [
+    Test.test("succeeds on an empty str", fn {
+      Parser.run(Parser.end, "")
+      |> Expect.equal(Ok(Unit))
+    }),
+    Test.test("fails on a non-empty string", fn {
+      Parser.run(Parser.end, "abc")
+      |> Expect.err()
+    }),
+  ]),
+  Test.describe("and_then", [
+    Test.test("fails when the first parser fails", fn {
+      let parser = Parser.and_then(Parser.fail("fail"), fn _ {
+        Parser.of(Unit)
+      });
+      Parser.run(parser, "any str")
+      |> Expect.err()
+    }),
+    Test.test("fails when the second parser fails", fn {
+      let parser = Parser.and_then(Parser.of(Unit), fn Unit {
+        Parser.fail("fail")
+      });
+      Parser.run(parser, "any str")
+      |> Expect.err()
+    }),
+    Test.test("succeeds when both the parsers succeed", fn {
+      let parser = Parser.and_then(Parser.of(10), fn x {
+        Parser.of(x + 1)
+      });
+      Parser.run(parser, "any str")
+      |> Expect.equal(Ok(11))
+    }),
+    Test.test("consumes the state with the first parser", fn {
+      let parser = {
+        let#Parser.and_then ch1 = Parser.any;
+        let#Parser.and_then ch2 = Parser.any;
+        let#Parser.and_then Unit = Parser.end;
+        Parser.of((ch1, ch2))
+      };
+      Parser.run(parser, "ab")
+      |> Expect.equal(Ok(('a', 'b')))
+    }),
+  ]),
+  Test.describe("one_of", [
+    Test.test("fails when no parsers are given", fn {
+      let parser = Parser.one_of([]);
+      Parser.run(parser, "any str")
+      |> Expect.err()
+    }),
+    Test.test("succeeds when the first parser succeeds", fn {
+      let parser = Parser.one_of([Parser.of(42)]);
+      Parser.run(parser, "any str")
+      |> Expect.equal(Ok(42))
+    }),
+    Test.test("the second parser can recover the error", fn {
+      let parser = Parser.one_of([Parser.fail("fail"), Parser.of(42)]);
+      Parser.run(parser, "any str")
+      |> Expect.equal(Ok(42))
+    }),
+    Test.test("takes the first valid parser", fn {
+      let parser = Parser.one_of([Parser.of(0), Parser.of(1)]);
+      Parser.run(parser, "any str")
+      |> Expect.equal(Ok(0))
+    }),
+    Test.test("does not consume the input on failure", fn {
+      let consume_and_fail = {
+        let#Parser.and_then _ = Parser.any;
+        Parser.fail("fail")
+      };
+      let parser = Parser.one_of([consume_and_fail, Parser.char('a')]);
+      Parser.run(parser, "aX")
+      |> Expect.equal(Ok(Unit))
+    }),
+    Test.test("consumes the state on success", fn {
+      let parser = {
+        let#Parser.and_then Unit = Parser.one_of([
+          Parser.fail("fail"),
+          Parser.char('a'),
+        ]);
+        let#Parser.and_then Unit = Parser.char('b');
+        Parser.of(Unit)
+      };
+      Parser.run(parser, "ab")
+      |> Expect.equal(Ok(Unit))
+    }),
+  ]),
+])
+
+let utilities = Test.concat([
+  Test.describe("map", [
+    Test.test("fails when given parser fails", fn {
+      let parser = {
+        Parser.end
+        |> Parser.map(fn _ {
+          42
+        })
+      };
+      Parser.run(parser, "any str")
+      |> Expect.err()
+    }),
+    Test.test("maps the inner parser", fn {
+      let parser = {
+        Parser.char('x')
+        |> Parser.map(fn _ {
+          42
+        })
+        |> Parser.map(fn x {
+          x + 1
+        })
+      };
+      Parser.run(parser, "x")
+      |> Expect.equal(Ok(43))
+    }),
+  ]),
+  Test.describe("char", [
+    Test.test("fails when char does not match", fn {
+      Parser.run(Parser.char('x'), "abc")
+      |> Expect.err()
+    }),
+    Test.test("succeeds when the char matches", fn {
+      Parser.run(Parser.char('a'), "abc")
+      |> Expect.equal(Ok(Unit))
+    }),
+  ]),
+  Test.describe("string", [
+    Test.test("fails when the first char fails", fn {
+      Parser.run(Parser.string("abc"), "123")
+      |> Expect.err()
+    }),
+    Test.test("fails when the a subsequent char does not match", fn {
+      Parser.run(Parser.string("abc"), "abX")
+      |> Expect.err()
+    }),
+    Test.test("succeds when the whole string matches", fn {
+      Parser.run(Parser.string("abc"), "abc_ignore")
+      |> Expect.equal(Ok(Unit))
+    }),
+  ]),
+])
+
+pub let main = {
+  Test.describe("Parser", [primitives, utilities])
+  |> Test.run()
+}

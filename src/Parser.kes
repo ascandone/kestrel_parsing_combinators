@@ -1,0 +1,116 @@
+type State {
+  State(Int, String),
+}
+
+pub(..) type ParsingError {
+  Expecting(String),
+}
+
+/// Represents a parser that yields a value of type `a`
+pub type Parser<a> {
+  Parser(Fn(State) -> (State, Result<a, ParsingError>)),
+}
+
+/// Run the parser on the given string.
+pub let run = fn Parser(run_parser), str {
+  let initial_state = State(0, str);
+  let (_, result) = run_parser(initial_state);
+  result
+}
+
+/// A combinator that always succeeds with the given value
+pub let of = fn value {
+  Parser(fn state {
+    (state, Ok(value))
+  })
+}
+
+/// A combinator that always fails with the given reason
+pub let fail = fn reason {
+  Parser(fn state {
+    (state, Err(Expecting(reason)))
+  })
+}
+
+/// A parser that consumes any char
+pub let any = Parser(fn state {
+  let State(index, str) = state;
+  match String.char_at(str, index) {
+    None => (state, Err(Expecting("a char"))),
+    Some(ch) => (State(index + 1, str), Ok(ch)),
+  }
+})
+
+/// A parser that succeed on end of string
+pub let end = Parser(fn state {
+  let State(index, str) = state;
+  match String.char_at(str, index) {
+    None => (State(index + 1, str), Ok(Unit)),
+    Some(_) => {
+      let err = Expecting("end of input");
+      (state, Err(err))
+    },
+  }
+})
+
+/// Chains the result of a parser with a function that returns a new parser.
+/// Fails when one of the parsers fail
+/// 
+/// If the first parse succeeds, the input is consumed even if the second parser fails
+pub let and_then = fn Parser(run_p1), f {
+  Parser(fn state {
+    let (new_state, result) = run_p1(state);
+    match result {
+      Err(e) => (state, Err(e)),
+      Ok(value) => {
+        let Parser(run_p2) = f(value);
+        run_p2(new_state)
+      },
+    }
+  })
+}
+
+pub let map = fn p, f {
+  let#and_then x = p;
+  of(f(x))
+}
+
+let one_of_binary = fn Parser(run_p1), Parser(run_p2) {
+  Parser(fn state {
+    let (new_state, result) = run_p1(state);
+    match result {
+      Err(_) => run_p2(state),
+      Ok(value) => (new_state, Ok(value)),
+    }
+  })
+}
+
+pub let one_of = fn parsers {
+  List.reduce_right(parsers, fail("no match"), one_of_binary)
+}
+
+/// Match an exact char
+pub let char = fn expected_ch {
+  let#and_then ch = any;
+  if ch == expected_ch {
+    of(Unit)
+  } else {
+    fail("the char `" ++ String.from_char(expected_ch) ++ "`")
+  }
+}
+
+/// Match an exact string
+pub let string = fn expected_str {
+  let helper = fn chars_list {
+    match chars_list {
+      Nil => of(Unit),
+      hd :: tl => {
+        let#and_then Unit = char(hd);
+        helper(tl)
+      },
+    }
+  };
+  expected_str
+  |> String.to_list()
+  |> helper()
+}
