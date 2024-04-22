@@ -178,6 +178,26 @@ let utilities = Test.concat([
       |> Expect.equal(Ok(Unit))
     }),
   ]),
+  Test.describe("satisfy", [
+    Test.test("fails when char does not satisfy predicat", fn {
+      Parser.run(
+        Parser.satisfy(fn ch {
+          ch == 'x'
+        }),
+        "abc",
+      )
+      |> Expect.err()
+    }),
+    Test.test("succeeds when the char matches the predicate", fn {
+      Parser.run(
+        Parser.satisfy(fn ch {
+          ch == 'a'
+        }),
+        "abc",
+      )
+      |> Expect.equal(Ok(Unit))
+    }),
+  ]),
   Test.describe("string", [
     Test.test("fails when the first char fails", fn {
       Parser.run(Parser.string("abc"), "123")

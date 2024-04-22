@@ -115,6 +115,16 @@ pub let char = fn expected_ch {
   }
 }
 
+/// Only parse when predicate is true
+pub let satisfy = fn predicate {
+  let#and_then ch = any;
+  if predicate(ch) {
+    of(Unit)
+  } else {
+    fail("satisfy")
+  }
+}
+
 /// Match an exact string
 pub let string = fn expected_str {
   let helper = fn chars_list {
