@@ -119,7 +119,7 @@ pub let char = fn expected_ch {
 pub let satisfy = fn predicate {
   let#and_then ch = any;
   if predicate(ch) {
-    of(Unit)
+    of(ch)
   } else {
     fail("satisfy")
   }

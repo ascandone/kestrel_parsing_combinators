@@ -195,7 +195,7 @@ let utilities = Test.concat([
         }),
         "abc",
       )
-      |> Expect.equal(Ok(Unit))
+      |> Expect.equal(Ok('a'))
     }),
   ]),
   Test.describe("string", [
