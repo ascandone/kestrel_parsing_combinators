@@ -249,6 +249,54 @@ let utilities = Test.concat([
       |> Expect.equal(Ok(Unit))
     }),
   ]),
+  Test.describe("sep_by", [
+    Test.test("no matches", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by1(Parser.char('-'))
+      };
+      Parser.run(parser, "XX")
+      |> Expect.err()
+    }),
+    Test.test("one match", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by1(Parser.char('-'))
+      };
+      Parser.run(parser, "a")
+      |> Expect.equal(Ok([Unit]))
+    }),
+    Test.test("no match after sep", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by1(Parser.char('-'))
+      };
+      Parser.run(parser, "a-")
+      |> Expect.err()
+    }),
+    Test.test("many matches", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by1(Parser.char('-'))
+      };
+      Parser.run(parser, "a-a-a")
+      |> Expect.equal(Ok([Unit, Unit, Unit]))
+    }),
+    Test.test("many matches (more than one char)", fn {
+      let whitespace = {
+        Parser.satisfy(fn ch {
+          ch == ' '
+        })
+        |> Parser.many1()
+      };
+      let parser = {
+        Parser.string("ab")
+        |> Parser.sep_by1(whitespace)
+      };
+      Parser.run(parser, "ab ab ab")
+      |> Expect.equal(Ok([Unit, Unit, Unit]))
+    }),
+  ]),
 ])
 
 pub let main = {

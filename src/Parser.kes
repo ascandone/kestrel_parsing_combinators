@@ -159,3 +159,34 @@ pub let many1 = fn parser {
   let#and_then xs = many(parser);
   Parser.of((x, xs))
 }
+
+/// List of _one_ or more values separated by given separator
+pub let sep_by1 = fn parser, separator {
+  let#Parser.and_then x = parser;
+  let#Parser.and_then opt_sep = Parser.one_of([
+    separator
+    |> Parser.try()
+    |> Parser.map(Some),
+    Parser.of(None),
+  ]);
+  match opt_sep {
+    None => Parser.of([x]),
+    Some(_) => {
+      sep_by1(parser, separator)
+      |> Parser.map(fn xs {
+        x :: xs
+      })
+    },
+  }
+}
+
+/// List of _zero_ or more values separated by given separator
+pub let sep_by = fn parser, separator {
+  Parser.one_of([sep_by1(parser, separator), Parser.of([])])
+}
+
+pub let discard = fn p {
+  Parser.map(p, fn _ {
+    Unit
+  })
+}
