@@ -249,7 +249,7 @@ let utilities = Test.concat([
       |> Expect.equal(Ok(Unit))
     }),
   ]),
-  Test.describe("sep_by", [
+  Test.describe("sep_by1", [
     Test.test("no matches", fn {
       let parser = {
         Parser.char('a')
@@ -292,6 +292,54 @@ let utilities = Test.concat([
       let parser = {
         Parser.string("ab")
         |> Parser.sep_by1(whitespace)
+      };
+      Parser.run(parser, "ab ab ab")
+      |> Expect.equal(Ok([Unit, Unit, Unit]))
+    }),
+  ]),
+  Test.describe("sep_by", [
+    Test.test("when empty", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by(Parser.char('-'))
+      };
+      Parser.run(parser, "XX")
+      |> Expect.equal(Ok([]))
+    }),
+    Test.test("one match", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by(Parser.char('-'))
+      };
+      Parser.run(parser, "a")
+      |> Expect.equal(Ok([Unit]))
+    }),
+    Test.test("no match after sep", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by(Parser.char('-'))
+      };
+      Parser.run(parser, "a-")
+      |> Expect.err()
+    }),
+    Test.test("many matches", fn {
+      let parser = {
+        Parser.char('a')
+        |> Parser.sep_by(Parser.char('-'))
+      };
+      Parser.run(parser, "a-a-a")
+      |> Expect.equal(Ok([Unit, Unit, Unit]))
+    }),
+    Test.test("many matches (more than one char)", fn {
+      let whitespace = {
+        Parser.satisfy(fn ch {
+          ch == ' '
+        })
+        |> Parser.many1()
+      };
+      let parser = {
+        Parser.string("ab")
+        |> Parser.sep_by(whitespace)
       };
       Parser.run(parser, "ab ab ab")
       |> Expect.equal(Ok([Unit, Unit, Unit]))
