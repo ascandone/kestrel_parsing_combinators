@@ -86,6 +86,11 @@ pub let map = fn p, f {
   of(f(x))
 }
 
+pub let map_to = fn p, x {
+  let#and_then _ = p;
+  of(x)
+}
+
 let get_index = fn State(index, _) {
   index
 }
@@ -103,6 +108,13 @@ let one_of_binary = fn Parser(run_p1), Parser(run_p2) {
 
 pub let one_of = fn parsers {
   List.reduce_right(parsers, fail("no match"), one_of_binary)
+}
+
+pub let lazy = fn get_parser {
+  Parser(fn state {
+    let Parser(run_parser) = get_parser();
+    run_parser(state)
+  })
 }
 
 /// Match an exact char

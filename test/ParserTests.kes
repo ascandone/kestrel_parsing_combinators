@@ -140,6 +140,19 @@ let primitives = Test.concat([
       |> Expect.equal(Ok('a'))
     }),
   ]),
+  Test.test("recursive parser", fn {
+    let counter_parser = Parser.one_of([
+      Parser.end
+      |> Parser.map_to(0),
+      Parser.lazy(fn {
+        let#Parser.and_then Unit = Parser.char('a');
+        let#Parser.and_then tl = counter_parser;
+        Parser.of(1 + tl)
+      }),
+    ]);
+    Parser.run(counter_parser, "aaa")
+    |> Expect.equal(Ok(3))
+  }),
 ])
 
 let utilities = Test.concat([
